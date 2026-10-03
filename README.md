@@ -1,2 +1,0 @@
-# pommu-youtube-embed
-pommuのyoutubeリンクが含まれる投稿で自動的にyoutubeの埋め込みを表示するためのスクリプト
