@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Pommu YouTube埋め込み
+// @name         Pommu 動画埋め込み(YouTube/ニコニコ)
 // @namespace    https://github.com/4STRA1
-// @version      1.3
-// @description  Pommuの投稿内のYouTubeリンクを再生ウィンドウとして埋め込む(複数はタブ切り替え・タップで読み込み)
+// @version      1.5
+// @description  Pommuの投稿内のYouTube/ニコニコ動画リンクを再生ウィンドウとして埋め込む(複数はタブ切り替え・タップで読み込み)
 // @author       4STRA1
 // @license      MIT
 // @match        https://ch.dlsite.com/pommu/*
@@ -18,12 +18,29 @@
   'use strict';
 
   const MARK = 'data-yt-embed-done';
-  const LINK_SEL = 'a[href*="youtube.com"], a[href*="youtu.be"]';
+  const LINK_SEL = 'a[href*="youtube.com"], a[href*="youtu.be"], a[href*="nicovideo.jp"], a[href*="nico.ms"]';
+
+  function parseTime(t) {
+    if (!t) return 0;
+    const m = String(t).match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+    return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0;
+  }
 
   function parse(href) {
     let u;
     try { u = new URL(href, location.href); } catch { return null; }
-    const h = u.hostname.replace(/^(www\.|m\.|music\.)/, '');
+    const h = u.hostname.replace(/^(www\.|m\.|music\.|sp\.)/, '');
+
+    // ニコニコ動画
+    if (h === 'nicovideo.jp' || h === 'nico.ms') {
+      const m = h === 'nico.ms'
+        ? u.pathname.match(/^\/((?:sm|nm|so)?\d+)/)
+        : u.pathname.match(/^\/watch\/((?:sm|nm|so)?\d+)/);
+      if (!m) return null;
+      return { site: 'nico', id: m[1], start: parseTime(u.searchParams.get('from')) };
+    }
+
+    // YouTube
     let id = null;
     if (h === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
     else if (h === 'youtube.com') {
@@ -34,18 +51,17 @@
       }
     }
     if (!id || !/^[\w-]{11}$/.test(id)) return null;
-    let start = 0;
-    const t = u.searchParams.get('t') || u.searchParams.get('start');
-    if (t) {
-      const m = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
-      if (m) start = (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
-    }
-    return { id, start };
+    return { site: 'yt', id, start: parseTime(u.searchParams.get('t') || u.searchParams.get('start')) };
   }
 
   function findRoot(a) {
     return a.closest('article, li, [class*="post"], [class*="Post"], [class*="card"], [class*="Card"]') || a.parentElement;
   }
+
+  const SITE = {
+    yt:   { name: 'YouTube',  color: '#e62117' },
+    nico: { name: 'ニコニコ', color: '#3a3a3a' },
+  };
 
   function build(videos) {
     const wrap = document.createElement('div');
@@ -73,17 +89,26 @@
       cur = i;
       const v = videos[i];
       box.replaceChildren();
-      const img = document.createElement('img');
-      img.src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`;
-      img.loading = 'lazy';
-      img.alt = '';
-      img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+      if (v.site === 'yt') {
+        const img = document.createElement('img');
+        img.src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`;
+        img.loading = 'lazy';
+        img.alt = '';
+        img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+        box.appendChild(img);
+      } else {
+        const ph = document.createElement('div');
+        ph.textContent = 'ニコニコ動画  ' + v.id;
+        ph.style.cssText = 'position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px;color:#ddd;font-size:13px;background:#252525;';
+        box.appendChild(ph);
+      }
       const play = document.createElement('div');
       play.style.cssText = 'position:absolute;left:50%;top:50%;width:64px;height:44px;margin:-22px 0 0 -32px;background:rgba(0,0,0,.75);border-radius:12px;';
       play.innerHTML = '<svg viewBox="0 0 64 44" width="64" height="44"><path d="M26 12l16 10-16 10z" fill="#fff"/></svg>';
-      box.append(img, play);
+      box.appendChild(play);
       buttons.forEach((b, j) => {
-        b.style.background = j === i ? '#2b8cff' : '#e8eef5';
+        const c = SITE[videos[j].site].color;
+        b.style.background = j === i ? c : '#e8eef5';
         b.style.color = j === i ? '#fff' : '#333';
       });
     }
@@ -98,7 +123,9 @@
       frame.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen';
       frame.allowFullscreen = true;
       frame.referrerPolicy = 'strict-origin-when-cross-origin';
-      frame.src = `https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1` + (v.start ? `&start=${v.start}` : '');
+      frame.src = v.site === 'yt'
+        ? `https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1` + (v.start ? `&start=${v.start}` : '')
+        : `https://embed.nicovideo.jp/watch/${v.id}?autoplay=1` + (v.start ? `&from=${v.start}` : '');
       box.replaceChildren(frame);
       box.style.cursor = 'default';
     });
@@ -109,11 +136,14 @@
     }
 
     if (tabs) {
+      const count = {};
       videos.forEach((v, i) => {
+        count[v.site] = (count[v.site] || 0) + 1;
+        const info = SITE[v.site];
         const b = document.createElement('button');
         b.type = 'button';
-        b.textContent = `動画${i + 1}`;
-        b.style.cssText = 'border:0;border-radius:14px;padding:4px 12px;font-size:13px;cursor:pointer;';
+        b.textContent = `${info.name} ${count[v.site]}`;
+        b.style.cssText = `border:0;border-left:5px solid ${info.color};border-radius:14px;padding:4px 12px 4px 9px;font-size:13px;cursor:pointer;`;
         b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); select(i); });
         tabs.appendChild(b);
         buttons.push(b);
@@ -152,9 +182,9 @@
     roots.filter(r => !absorbed.has(r)).forEach(r => {
       const videos = [];
       anchors.forEach(x => {
-        if (r.contains(x.a) && !videos.some(y => y.id === x.v.id)) videos.push(x.v);
+        if (r.contains(x.a) && !videos.some(y => y.site === x.v.site && y.id === x.v.id)) videos.push(x.v);
       });
-      const sig = videos.map(v => v.id + ':' + v.start).join(',');
+      const sig = videos.map(v => v.site + v.id + ':' + v.start).join(',');
       if (r.getAttribute(MARK) === sig) return;
       // 以前の埋め込み(内側rootに作られたもの含む)を片付けてから作り直す
       r.querySelectorAll('.yt-embed-wrap').forEach(w => w.remove());

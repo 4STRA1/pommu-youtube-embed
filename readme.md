@@ -1,8 +1,8 @@
-# Pommu YouTube埋め込み
+# Pommu 動画埋め込み（YouTube / ニコニコ動画）
 
-DLsiteの「pommu」で、投稿内にYouTubeのリンクがある場合に、その投稿の下へ動画の再生ウィンドウを埋め込むTampermonkeyユーザースクリプトです。
+DLsiteの「pommu」で、投稿内にYouTubeまたはニコニコ動画のリンクがある場合に、その投稿の下へ動画の再生ウィンドウを埋め込むTampermonkeyユーザースクリプトです。
 
-複数のYouTubeリンクがある投稿では、タブで動画を切り替えられます。
+複数の動画リンクがある投稿では、タブで動画を切り替えられます。YouTubeとニコニコ動画が混在していても、タブの表示で見分けられます。
 
 ## 対応サイト
 
@@ -28,16 +28,16 @@ https://raw.githubusercontent.com/4STRA1/pommu-youtube-embed/main/pommu-youtube-
 
 ## 機能
 
-- 投稿内のYouTubeリンクを自動検出
-- 投稿の下にYouTubeの再生ウィンドウを埋め込み
-- 複数のYouTubeリンクがある場合はタブで切り替え
+- 投稿内のYouTube・ニコニコ動画のリンクを自動検出
+- 投稿の下に再生ウィンドウを埋め込み
+- 複数の動画リンクがある場合はタブで切り替え
+- タブにサイト名（YouTube / ニコニコ）とサイトごとの連番を表示し、サイトごとに色分け
 - 同じ動画のリンクが複数あっても、1つにまとめて表示
-- YouTubeの通常動画に対応
-- YouTube Shortsに対応
-- YouTube Liveに対応
+- YouTubeの通常動画・Shorts・Liveに対応
 - "youtu.be"形式のURLに対応
-- `t=` や `start=` で指定した開始時間に対応
-- 最初はサムネイルのみ表示し、タップした時にプレイヤーを読み込む(読み込みが軽い)
+- ニコニコ動画の通常URL・短縮URL（nico.ms）に対応
+- 開始時間の指定に対応（YouTube: `t=` / `start=`、ニコニコ: `from=`）
+- 最初はサムネイル（ニコニコはプレースホルダー）のみ表示し、タップした時にプレイヤーを読み込む（読み込みが軽い）
 - 無限スクロールなどで後から追加された投稿にも対応
 - プレイヤーをタップしても投稿詳細へ遷移しない
 
@@ -45,48 +45,57 @@ https://raw.githubusercontent.com/4STRA1/pommu-youtube-embed/main/pommu-youtube-
 
 Pommuでタイムラインや投稿詳細を開きます。
 
-投稿にYouTubeのリンクが含まれていると、その投稿の下にサムネイルと再生ボタンが表示されます。
+投稿にYouTubeまたはニコニコ動画のリンクが含まれていると、その投稿の下に再生ボタン付きの表示が出ます。
 
-サムネイルをタップすると、その場でプレイヤーに切り替わり、自動再生されます。
+- YouTube：動画のサムネイルが表示されます。
+- ニコニコ動画：サムネイルは取得しないため、「ニコニコ動画 sm…」と書かれた暗いプレースホルダーが表示されます。
 
-投稿に複数のYouTubeリンクがある場合は、サムネイルの上に「動画1」「動画2」…のタブが表示されます。タブを押すと、表示する動画を切り替えられます。切り替えた直後はサムネイルが表示されるので、再生したい場合はもう一度タップしてください。
+タップすると、その場でプレイヤーに切り替わり、再生されます。ニコニコ動画で自動再生が始まらない場合は、プレイヤー内の再生ボタンを押してください。
 
-## 対応するYouTube URL
+投稿に複数の動画リンクがある場合は、上に「YouTube 1」「ニコニコ 1」「YouTube 2」…のタブが表示されます。タブを押すと、表示する動画を切り替えられます。
 
-以下の形式に対応しています。
+- 左端の線と選択時の色：YouTubeは赤、ニコニコは濃いグレーです。
+- 番号はサイトごとに数えます。
+- 切り替えた直後は再生前の表示（サムネイルなど）になるので、再生したい場合はもう一度タップしてください。
 
-通常の動画
+リンクが1つだけの投稿には、タブは表示されません。
 
-https://www.youtube.com/watch?v=XXXXXXXXXXX
+## 対応するURL
 
-Shorts
+YouTube
 
-https://www.youtube.com/shorts/XXXXXXXXXXX
+- 通常の動画：https://www.youtube.com/watch?v=XXXXXXXXXXX
+- Shorts：https://www.youtube.com/shorts/XXXXXXXXXXX
+- YouTube Live：https://www.youtube.com/live/XXXXXXXXXXX
+- 短縮URL：https://youtu.be/XXXXXXXXXXX
 
-YouTube Live
+ニコニコ動画
 
-https://www.youtube.com/live/XXXXXXXXXXX
-
-短縮URL
-
-https://youtu.be/XXXXXXXXXXX
+- 通常の動画：https://www.nicovideo.jp/watch/smXXXXXXXX
+- 短縮URL：https://nico.ms/smXXXXXXXX
+- 動画IDは `sm` / `nm` / `so` から始まるもの、および数字のみのIDに対応しています。
 
 開始時間の指定にも対応しています。
 
-https://youtu.be/XXXXXXXXXXX?t=90
+- https://youtu.be/XXXXXXXXXXX?t=90
+- https://www.nicovideo.jp/watch/smXXXXXXXX?from=90
 
 ## 埋め込みの仕組み
 
-投稿内のリンクから動画IDを取り出し、YouTubeの埋め込みプレイヤー（`youtube-nocookie.com`）をiframeで表示します。
+投稿内のリンクから動画IDを取り出し、各サービスの埋め込みプレイヤーをiframeで表示します。
 
-プレイヤーはサムネイルをタップするまで読み込まないため、投稿が多い画面でも表示が重くなりにくくなっています。
+- YouTube：`youtube-nocookie.com`
+- ニコニコ動画：`embed.nicovideo.jp`
+
+プレイヤーはタップするまで読み込まないため、投稿が多い画面でも表示が重くなりにくくなっています。
 
 ## 通信について
 
 このスクリプトは、以下のURLへ通信します。
 
-- `https://i.ytimg.com`：サムネイル画像の取得
-- `https://www.youtube-nocookie.com/embed/`：サムネイルをタップした時のプレイヤー読み込み
+- `https://i.ytimg.com`：YouTubeのサムネイル画像の取得
+- `https://www.youtube-nocookie.com/embed/`：YouTube動画をタップした時のプレイヤー読み込み
+- `https://embed.nicovideo.jp/watch/`：ニコニコ動画をタップした時のプレイヤー読み込み
 
 Pommu側のAPIへ追加のリクエストを送信する仕組みはありません。
 
@@ -102,7 +111,7 @@ GitHub上でスクリプトを更新し、"@version"を変更することで新�
 
 現在のバージョン：
 
-"1.3"
+"1.5"
 
 更新用URL：
 
@@ -120,10 +129,12 @@ https://github.com/4STRA1
 
 ## 注意事項
 
-このスクリプトはDLsiteおよびYouTubeの公式機能ではありません。
+このスクリプトはDLsite、YouTube、ニコニコ動画の公式機能ではありません。
 
 動画の投稿者が埋め込みを禁止している場合や、年齢制限・非公開・削除などの動画は、プレイヤー内にエラーが表示され、再生できません。
 
 Pommu側のCSP（Content Security Policy）の設定によっては、サムネイルやプレイヤーが表示されない場合があります。
 
-YouTube側の仕様変更やPommu側の画面構成の変更によって、動作しなくなる可能性があります。
+ニコニコ動画のプレイヤーは、自動再生がブラウザやサービス側の仕様で効かない場合があります。
+
+YouTube・ニコニコ動画側の仕様変更やPommu側の画面構成の変更によって、動作しなくなる可能性があります。
